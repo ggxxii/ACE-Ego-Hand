@@ -1,9 +1,10 @@
-# DreamHand
+# DreamHand: Repurposing Video Diffusion Models for Occlusion-Robust Egocentric 3D Hand Motion Recovery
+<img src='assets/teaser.png'/>
 
-**Repurposing Video Diffusion Models for Occlusion-Robust Egocentric 3D Hand
-Motion Recovery**
+### [Project Page](https://ggxxii.github.io/dreamhand/) | [Paper (ArXiv)](https://arxiv.org/abs/2608.20308)
 
-<a href="https://ggxxii.github.io/">Yufei Liu</a><sup>1,4</sup>,
+
+[Yufei Liu](https://ggxxii.github.io/)<sup>1,4</sup>,
 Xixi Wang<sup>2</sup>,
 Hao Li<sup>3,4</sup>,
 Ganlong Zhao<sup>3,4</sup>,
@@ -13,21 +14,16 @@ Chunxiao Liu<sup>4</sup>,
 Jianbo Liu<sup>4</sup>,
 Siyuan Huang<sup>4</sup>,
 Xingang Pan<sup>2</sup>,
-Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;
+Hongsheng Li<sup>3,4*</sup><br>
 
-<sup>1</sup>Shanghai Jiao Tong University &nbsp;&nbsp;
-<sup>2</sup>Nanyang Technological University &nbsp;&nbsp;
-<sup>3</sup>The Chinese University of Hong Kong &nbsp;&nbsp;
-<sup>4</sup>ACE Robotics
 
-<sub>&#9993; Corresponding author</sub>
+<sup>1</sup>Shanghai Jiao Tong University, <sup>2</sup>Nanyang Technological University, <sup>3</sup>The Chinese University of Hong Kong, <sup>4</sup>ACE Robotics
 
-<p align="center">
-<a href="https://arxiv.org/abs/2608.20308"><img src="https://img.shields.io/badge/arXiv-2608.20308-b31b1b" alt="arXiv"></a>
-<a href="https://ggxxii.github.io/dreamhand/"><img src="https://img.shields.io/badge/Project-Page-blue" alt="Project page"></a>
-</p>
+## Updates
 
-<p align="center"><img src="assets/teaser.png" width="92%"></p>
+[08/2026] Paper uploaded to arXiv. [![arXiv](https://img.shields.io/badge/arXiv-2608.20308-b31b1b.svg)](https://arxiv.org/abs/2608.20308)
+
+## Abstract
 
 Egocentric video offers scalable manipulation data for embodied AI, yet
 recovering metric 3D hand trajectories remains challenging due to severe
@@ -48,7 +44,7 @@ on HOT3D. These gains reach 46%–61% once out-of-sight hands are included in
 the evaluation, offering a scalable path from everyday human video to robot
 manipulation data.
 
-<p align="center"><img src="assets/method.png" width="92%"></p>
+<img src='assets/method.png'/>
 
 ## TODO
 
@@ -62,8 +58,8 @@ The code and the pretrained checkpoints are not released yet. They will be
 published in this repository; watch it for updates.
 
 ## Citation
-
-```bibtex
+If you find our work useful for your research, please consider citing the paper:
+```
 @misc{liu2026dreamhandrepurposingvideodiffusion,
       title={DreamHand: Repurposing Video Diffusion Models for Occlusion-Robust Egocentric 3D Hand Motion Recovery}, 
       author={Yufei Liu and Xixi Wang and Hao Li and Ganlong Zhao and Kaitong Cai and Chengkai Jin and Chunxiao Liu and Jianbo Liu and Siyuan Huang and Xingang Pan and Hongsheng Li},
@@ -75,7 +71,7 @@ published in this repository; watch it for updates.
 }
 ```
 
-## License and acknowledgements
+## License and Acknowledgements
 
 The code will be released under the MIT License (see `LICENSE`). The Wan
 backbone weights, the VideoX-Fun framework, the MANO hand model and the
