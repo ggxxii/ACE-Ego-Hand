@@ -3,28 +3,24 @@
 **Repurposing Video Diffusion Models for Occlusion-Robust Egocentric 3D Hand
 Motion Recovery**
 
-<p align="center">
 <a href="https://ggxxii.github.io/">Yufei Liu</a><sup>1,4</sup>,
 Xixi Wang<sup>2</sup>,
 Hao Li<sup>3,4</sup>,
 Ganlong Zhao<sup>3,4</sup>,
 Kaitong Cai<sup>4</sup>,
-Chengkai Jin<sup>2,4</sup>,<br>
+Chengkai Jin<sup>2,4</sup>,
 Chunxiao Liu<sup>4</sup>,
 Jianbo Liu<sup>4</sup>,
 Siyuan Huang<sup>4</sup>,
 Xingang Pan<sup>2</sup>,
 Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;
-</p>
 
-<p align="center">
 <sup>1</sup>Shanghai Jiao Tong University &nbsp;&nbsp;
-<sup>2</sup>Nanyang Technological University<br>
+<sup>2</sup>Nanyang Technological University &nbsp;&nbsp;
 <sup>3</sup>The Chinese University of Hong Kong &nbsp;&nbsp;
 <sup>4</sup>ACE Robotics
-</p>
 
-<p align="center"><sub>&#9993; Corresponding author</sub></p>
+<sub>&#9993; Corresponding author</sub>
 
 <p align="center">
 <a href="https://arxiv.org/abs/2608.20308"><img src="https://img.shields.io/badge/arXiv-2608.20308-b31b1b" alt="arXiv"></a>
