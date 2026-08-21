@@ -12,12 +12,12 @@ Kaitong Cai<sup>4</sup>,
 Chengkai Jin<sup>2,4</sup>,
 Chunxiao Liu<sup>4</sup>,
 Jianbo Liu<sup>4</sup>,
-[Siyuan Huang](https://scholar.google.com/citations?user=QNkS4KEAAAAJ&hl=en)<sup>4</sup>,
+[Siyuan Huang](https://scholar.google.com/citations?user=QNkS4KEAAAAJ&hl=en)<sup>4</sup>&nbsp;&#8224;,
 [Xingang Pan](https://xingangpan.github.io/)<sup>2</sup>,
 [Hongsheng Li](https://scholar.google.com/citations?user=BN2Ze-QAAAAJ&hl=en)<sup>3,4</sup>&nbsp;&#9993;<br>
 
 
-<sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics &nbsp;&nbsp; <sub>&#9993; Corresponding author</sub>
+<sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics &nbsp;&nbsp; <sub>&#8224; Project leader &nbsp; &#9993; Corresponding author</sub>
 
 ## Updates
 
