@@ -14,10 +14,12 @@ Chunxiao Liu<sup>4</sup>,
 Jianbo Liu<sup>4</sup>,
 Siyuan Huang<sup>4</sup>,
 Xingang Pan<sup>2</sup>,
-Hongsheng Li<sup>3,4*</sup><br>
+Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;<br>
 
 
 <sup>1</sup>Shanghai Jiao Tong University, <sup>2</sup>Nanyang Technological University, <sup>3</sup>The Chinese University of Hong Kong, <sup>4</sup>ACE Robotics
+
+<sub>&#9993; Corresponding author</sub>
 
 ## Updates
 
@@ -44,7 +46,15 @@ on HOT3D. These gains reach 46%–61% once out-of-sight hands are included in
 the evaluation, offering a scalable path from everyday human video to robot
 manipulation data.
 
+## Method
 <img src='assets/method.png'/>
+
+Raw video is encoded into latents by the Wan VAE and processed by the Wan DiT
+(σ=0). Block-15 features branch to the Ray Head and the Bidirectional
+Spatiotemporal Decoder; only the patch embedding, LoRA, Ray Head and Decoder
+are trained. Camera intrinsics supervise the Ray Head during training. At test
+time they are discarded (K-free) or used only as the bearing source in the
+translation solve (standard).
 
 ## TODO
 
