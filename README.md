@@ -17,7 +17,7 @@ Xingang Pan<sup>2</sup>,
 Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;<br>
 
 
-<sup>1</sup>Shanghai Jiao Tong University, <sup>2</sup>Nanyang Technological University, <sup>3</sup>The Chinese University of Hong Kong, <sup>4</sup>ACE Robotics
+<sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics
 
 <sub>&#9993; Corresponding author</sub>
 
