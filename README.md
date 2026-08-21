@@ -17,9 +17,7 @@ Xingang Pan<sup>2</sup>,
 Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;<br>
 
 
-<sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics
-
-<sub>&#9993; Corresponding author</sub>
+<sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics &nbsp;&nbsp; <sub>&#9993; Corresponding author</sub>
 
 ## Updates
 
@@ -51,10 +49,9 @@ manipulation data.
 
 Raw video is encoded into latents by the Wan VAE and processed by the Wan DiT
 (σ=0). Block-15 features branch to the Ray Head and the Bidirectional
-Spatiotemporal Decoder; only the patch embedding, LoRA, Ray Head and Decoder
-are trained. Camera intrinsics supervise the Ray Head during training. At test
-time they are discarded (K-free) or used only as the bearing source in the
-translation solve (standard).
+Spatiotemporal Decoder. Camera intrinsics supervise the Ray Head during
+training. At test time they are discarded (K-free) or used only as the bearing
+source in the translation solve (standard).
 
 ## TODO
 
