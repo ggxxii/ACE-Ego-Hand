@@ -6,15 +6,15 @@
 
 [Yufei Liu](https://ggxxii.github.io/)<sup>1,4</sup>,
 Xixi Wang<sup>2</sup>,
-Hao Li<sup>3,4</sup>,
-Ganlong Zhao<sup>3,4</sup>,
+[Hao Li](https://scholar.google.com/citations?view_op=list_works&hl=zh-CN&hl=zh-CN&user=D-8csxoAAAAJ)<sup>3,4</sup>,
+[Ganlong Zhao](https://scholar.google.com/citations?user=4l2zOz4AAAAJ&hl=zh-CN)<sup>3,4</sup>,
 Kaitong Cai<sup>4</sup>,
 Chengkai Jin<sup>2,4</sup>,
 Chunxiao Liu<sup>4</sup>,
 Jianbo Liu<sup>4</sup>,
 Siyuan Huang<sup>4</sup>,
-Xingang Pan<sup>2</sup>,
-Hongsheng Li<sup>3,4</sup>&nbsp;&#9993;<br>
+[Xingang Pan](https://xingangpan.github.io/)<sup>2</sup>,
+[Hongsheng Li](https://scholar.google.com/citations?user=BN2Ze-QAAAAJ&hl=en)<sup>3,4</sup>&nbsp;&#9993;<br>
 
 
 <sup>1</sup>SJTU, <sup>2</sup>NTU, <sup>3</sup>CUHK, <sup>4</sup>ACE Robotics &nbsp;&nbsp; <sub>&#9993; Corresponding author</sub>
