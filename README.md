@@ -21,6 +21,9 @@ Jianbo Liu<sup>4</sup>,
 
 ## Updates
 
+[09/2026] **Inference code and pretrained checkpoints will be released on
+September 10, 2026.**
+
 [08/2026] Paper uploaded to arXiv. [![arXiv](https://img.shields.io/badge/arXiv-2608.20308-b31b1b.svg)](https://arxiv.org/abs/2608.20308)
 
 ## Abstract
@@ -57,12 +60,12 @@ source in the translation solve (standard).
 
 - [x] [arXiv preprint](https://arxiv.org/abs/2608.20308)
 - [x] [Project page](https://ggxxii.github.io/ace-ego-hand/)
-- [ ] Inference code
-- [ ] Pretrained checkpoints — ACE-Ego-Hand (K-given) and ACE-Ego-Hand (K-free)
+- [ ] Inference code — **September 10, 2026**
+- [ ] Pretrained checkpoints — K-given and K-free — **September 10, 2026**
 - [ ] Training code and data preparation scripts
 
-The code and the pretrained checkpoints are not released yet. They will be
-published in this repository; watch it for updates.
+Inference code and both checkpoints land on **September 10, 2026**. Training
+code follows in this repository; watch it for updates.
 
 ## Citation
 If you find our work useful for your research, please consider citing the paper:
