@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Run ACE-Ego-Hand on a single egocentric video.
 
-The VAE and the backbone are both resident; the clip is decoded, VAE-encoded,
-predicted and written in one pass, and the latent only ever exists in GPU
-memory.
+The clip is decoded and VAE-encoded first; the VAE is then freed before the
+GeoDit backbone is loaded so the two never share VRAM. The latent is kept on
+CPU between those stages.
 
 Camera: the K-given config needs a calibration (``--camera cam.json``, or the
 inline shorthand ``--intrinsics fx,fy,cx,cy``); it is rescaled with the frames.
@@ -155,17 +155,17 @@ def main() -> None:
         print(f"[camera] K-free: no intrinsics given, placeholder fx={foc:.1f} "
               "(the model's own fitted camera is written as pred_intrinsics)")
 
-    model = GeoDitModel(opt, device)
-    model.load_inference(str(Path(args.ckpt).resolve()))
-    if args.tap not in model.net.tap_layers:
-        raise SystemExit(f"tap {args.tap} not in {model.net.tap_layers}")
-
     vae = load_vae(device)
     pixels = decode_video(args.video, n_frames, resize_hw=(enc_w, enc_h))
     ctrl = encode(vae, pixels, device).float()
     del vae, pixels
     if device.type == "cuda":
         torch.cuda.empty_cache()
+
+    model = GeoDitModel(opt, device)
+    model.load_inference(str(Path(args.ckpt).resolve()))
+    if args.tap not in model.net.tap_layers:
+        raise SystemExit(f"tap {args.tap} not in {model.net.tap_layers}")
 
     pred = predict_video(model, args.tap, ctrl, intr, args.mode, device,
                            tile_w=args.tile_w)

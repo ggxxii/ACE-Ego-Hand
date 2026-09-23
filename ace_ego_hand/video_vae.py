@@ -2,7 +2,8 @@
 
 ``decode_video`` reads frames with OpenCV, ``load_vae``/``encode`` run the
 frozen causal VAE from the Wan2.2-Fun-5B-Control release (see the README,
-"Download checkpoints").
+"Download checkpoints"). ``encode`` streams 1-then-4-frame micro-chunks so a
+long clip never occupies GPU as a single pixel tensor.
 """
 from __future__ import annotations
 
@@ -64,15 +65,38 @@ def load_vae(device: torch.device):
 
 
 @torch.no_grad()
-
-
 def encode(vae, pixels: torch.Tensor, device) -> torch.Tensor:
-    """(F,3,H,W) [-1,1] -> (C_lat, F_lat, H/16, W/16) f16 cpu."""
-    x = pixels.permute(1, 0, 2, 3).unsqueeze(0).to(device, torch.bfloat16)  # (1,3,F,H,W)
-    enc = vae.encode(x)
-    dist = enc[0] if isinstance(enc, (tuple, list)) else getattr(enc, "latent_dist", enc)
-    lat = dist.mode() if hasattr(dist, "mode") else dist.sample()
-    return lat[0].to(torch.float16).cpu()
+    """(F,3,H,W) [-1,1] -> (C_lat, F_lat, H/16, W/16) f16 cpu.
+
+    Replays ``AutoencoderKLWan2_2_.encode``'s causal 1-then-4-frame loop, but
+    only the current micro-chunk lives on GPU. ``_enc_feat_map`` stays on GPU
+    across chunks; ``clear_cache`` runs once at the start and once at the end,
+    so this is not equivalent to ``for chunk in split(...): vae.encode(chunk)``.
+    """
+    from videox_fun.models.wan_vae3_8 import patchify
+
+    inner = vae.model
+    n = pixels.shape[0]
+    iter_ = 1 + (n - 1) // 4
+    scale = [s.to(device, torch.bfloat16) for s in vae.scale]
+    mean = scale[0].view(1, inner.z_dim, 1, 1, 1)
+    inv_std = scale[1].view(1, inner.z_dim, 1, 1, 1)
+
+    inner.clear_cache()
+    latents = []
+    for i in range(iter_):
+        sl = slice(0, 1) if i == 0 else slice(1 + 4 * (i - 1), 1 + 4 * i)
+        x = pixels[sl].permute(1, 0, 2, 3).unsqueeze(0).to(device, torch.bfloat16)
+        x = patchify(x, patch_size=2)
+        inner._enc_conv_idx = [0]
+        out = inner.encoder(
+            x, feat_cache=inner._enc_feat_map, feat_idx=inner._enc_conv_idx)
+        mu, _log_var = inner.conv1(out).chunk(2, dim=1)
+        mu = (mu - mean) * inv_std
+        latents.append(mu[0].to(torch.float16).cpu())
+        del x, out, mu, _log_var
+    inner.clear_cache()
+    return torch.cat(latents, dim=1)
 
 
 # RHD masters store the NATIVE RHD joint order: wrist=0, then per finger
