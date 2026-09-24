@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run ACE-Ego-Hand on a single egocentric video.
 
-The VAE and the backbone are both resident; the clip is decoded, VAE-encoded,
-predicted and written in one pass, and the latent only ever exists in GPU
-memory.
+The clip is VAE-encoded first (OpenCV yields 1-then-4-frame chunks, so the
+pixel video never sits in RAM); the VAE is then freed before the GeoDit
+backbone is loaded so the two never share VRAM. The latent is kept on CPU
+between those stages.
 
 Camera: the K-given config needs a calibration (``--camera cam.json``, or the
 inline shorthand ``--intrinsics fx,fy,cx,cy``); it is rescaled with the frames.
@@ -38,7 +39,7 @@ sys.path.insert(0, str(ROOT))
 from ace_ego_hand.archs.geodit_arch import _reject_non_pinhole  # noqa: E402
 from ace_ego_hand.inference import DUMP_KEYS, predict_video  # noqa: E402
 from ace_ego_hand.models.geodit_model import GeoDitModel   # noqa: E402
-from ace_ego_hand.video_vae import decode_video, encode, frame_count, load_vae  # noqa: E402
+from ace_ego_hand.video_vae import encode_video, frame_count, load_vae  # noqa: E402
 
 # The VAE downsamples by 16 in space and is causal in time (4x + 1). Latent grids
 # must therefore be even in both axes, so round the encode size to a multiple of 32.
@@ -155,17 +156,17 @@ def main() -> None:
         print(f"[camera] K-free: no intrinsics given, placeholder fx={foc:.1f} "
               "(the model's own fitted camera is written as pred_intrinsics)")
 
+    vae = load_vae(device)
+    ctrl = encode_video(
+        vae, args.video, n_frames, device, resize_hw=(enc_w, enc_h)).float()
+    del vae
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
+
     model = GeoDitModel(opt, device)
     model.load_inference(str(Path(args.ckpt).resolve()))
     if args.tap not in model.net.tap_layers:
         raise SystemExit(f"tap {args.tap} not in {model.net.tap_layers}")
-
-    vae = load_vae(device)
-    pixels = decode_video(args.video, n_frames, resize_hw=(enc_w, enc_h))
-    ctrl = encode(vae, pixels, device).float()
-    del vae, pixels
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
 
     pred = predict_video(model, args.tap, ctrl, intr, args.mode, device,
                            tile_w=args.tile_w)
