@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run ACE-Ego-Hand on a single egocentric video.
 
-The clip is decoded and VAE-encoded first; the VAE is then freed before the
-GeoDit backbone is loaded so the two never share VRAM. The latent is kept on
-CPU between those stages.
+The clip is VAE-encoded first (OpenCV yields 1-then-4-frame chunks, so the
+pixel video never sits in RAM); the VAE is then freed before the GeoDit
+backbone is loaded so the two never share VRAM. The latent is kept on CPU
+between those stages.
 
 Camera: the K-given config needs a calibration (``--camera cam.json``, or the
 inline shorthand ``--intrinsics fx,fy,cx,cy``); it is rescaled with the frames.
@@ -38,7 +39,7 @@ sys.path.insert(0, str(ROOT))
 from ace_ego_hand.archs.geodit_arch import _reject_non_pinhole  # noqa: E402
 from ace_ego_hand.inference import DUMP_KEYS, predict_video  # noqa: E402
 from ace_ego_hand.models.geodit_model import GeoDitModel   # noqa: E402
-from ace_ego_hand.video_vae import decode_video, encode, frame_count, load_vae  # noqa: E402
+from ace_ego_hand.video_vae import encode_video, frame_count, load_vae  # noqa: E402
 
 # The VAE downsamples by 16 in space and is causal in time (4x + 1). Latent grids
 # must therefore be even in both axes, so round the encode size to a multiple of 32.
@@ -156,9 +157,9 @@ def main() -> None:
               "(the model's own fitted camera is written as pred_intrinsics)")
 
     vae = load_vae(device)
-    pixels = decode_video(args.video, n_frames, resize_hw=(enc_w, enc_h))
-    ctrl = encode(vae, pixels, device).float()
-    del vae, pixels
+    ctrl = encode_video(
+        vae, args.video, n_frames, device, resize_hw=(enc_w, enc_h)).float()
+    del vae
     if device.type == "cuda":
         torch.cuda.empty_cache()
 

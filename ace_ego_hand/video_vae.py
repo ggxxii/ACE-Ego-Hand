@@ -2,8 +2,9 @@
 
 ``decode_video`` reads frames with OpenCV, ``load_vae``/``encode`` run the
 frozen causal VAE from the Wan2.2-Fun-5B-Control release (see the README,
-"Download checkpoints"). ``encode`` streams 1-then-4-frame micro-chunks so a
-long clip never occupies GPU as a single pixel tensor.
+"Download checkpoints"). ``encode`` / ``encode_video`` stream 1-then-4-frame
+micro-chunks so a long clip never occupies GPU — or host RAM — as a single
+pixel tensor.
 """
 from __future__ import annotations
 
@@ -20,29 +21,46 @@ MODEL_ROOT = ROOT / "ckpt" / "Wan2.2-Fun-5B-Control"
 VIDEOX_CFG = ROOT / "third_party" / "config" / "wan2.2" / "wan_civitai_5b.yaml"
 
 
+def _resize_bgr(f: np.ndarray, resize_w: int = 0,
+                resize_hw: tuple[int, int] | None = None) -> np.ndarray:
+    if resize_hw and (f.shape[1] != resize_hw[0] or f.shape[0] != resize_hw[1]):
+        return cv2.resize(f, resize_hw, interpolation=cv2.INTER_AREA)
+    if resize_w and f.shape[1] != resize_w:
+        return cv2.resize(f, (resize_w, f.shape[0]), interpolation=cv2.INTER_AREA)
+    return f
+
+
+def _bgr_frames_to_pixels(frames: list[np.ndarray]) -> torch.Tensor:
+    """BGR uint8 frames -> (F, 3, H, W) float32 in [-1, 1] (RGB)."""
+    a = np.stack(frames).astype(np.float32) / 255.0 * 2.0 - 1.0
+    return torch.from_numpy(a[:, :, :, ::-1].copy()).permute(0, 3, 1, 2).contiguous()
+
+
+def _read_bgr_frames(cap: cv2.VideoCapture, n: int, path: str,
+                     got: int, resize_w: int = 0,
+                     resize_hw: tuple[int, int] | None = None) -> list[np.ndarray]:
+    frames = []
+    while len(frames) < n:
+        ok, f = cap.read()
+        if not ok:
+            cap.release()
+            raise RuntimeError(f"{path}: decoded {got + len(frames)} < expected {got + n}")
+        frames.append(_resize_bgr(f, resize_w, resize_hw))
+    return frames
+
+
 def decode_video(path: str, n_frames: int, resize_w: int = 0,
                  resize_hw: tuple[int, int] | None = None) -> torch.Tensor:
     """Decode up to n_frames -> (F, 3, H, W) float32 in [-1, 1] (RGB).
 
     ``resize_hw`` rescales to an exact (W, H); ``resize_w`` rescales the width
-    only. The caller is responsible for scaling K to match.
+    only. The caller is responsible for scaling K to match. Prefer
+    ``encode_video`` for long clips — this keeps the whole pixel tensor in RAM.
     """
     cap = cv2.VideoCapture(path)
-    frames = []
-    while len(frames) < n_frames:
-        ok, f = cap.read()
-        if not ok:
-            break
-        if resize_hw and (f.shape[1] != resize_hw[0] or f.shape[0] != resize_hw[1]):
-            f = cv2.resize(f, resize_hw, interpolation=cv2.INTER_AREA)
-        elif resize_w and f.shape[1] != resize_w:
-            f = cv2.resize(f, (resize_w, f.shape[0]), interpolation=cv2.INTER_AREA)
-        frames.append(f[:, :, ::-1].copy())  # BGR -> RGB
+    frames = _read_bgr_frames(cap, n_frames, path, 0, resize_w, resize_hw)
     cap.release()
-    if len(frames) < n_frames:
-        raise RuntimeError(f"{path}: decoded {len(frames)} < expected {n_frames}")
-    a = np.stack(frames).astype(np.float32) / 255.0 * 2.0 - 1.0
-    return torch.from_numpy(a).permute(0, 3, 1, 2).contiguous()
+    return _bgr_frames_to_pixels(frames)
 
 
 def frame_count(path: str) -> int:
@@ -64,6 +82,31 @@ def load_vae(device: torch.device):
     return vae
 
 
+def _encode_setup(vae, device):
+    from videox_fun.models.wan_vae3_8 import patchify
+
+    inner = vae.model
+    scale = [s.to(device, torch.bfloat16) for s in vae.scale]
+    mean = scale[0].view(1, inner.z_dim, 1, 1, 1)
+    inv_std = scale[1].view(1, inner.z_dim, 1, 1, 1)
+    return inner, patchify, mean, inv_std
+
+
+def _encode_chunk(inner, pixels: torch.Tensor, device, patchify, mean, inv_std
+                  ) -> torch.Tensor:
+    """One 1- or 4-frame CPU chunk -> one (C, F_lat, H, W) f16 CPU latent."""
+    x = pixels.permute(1, 0, 2, 3).unsqueeze(0).to(device, torch.bfloat16)
+    x = patchify(x, patch_size=2)
+    inner._enc_conv_idx = [0]
+    out = inner.encoder(
+        x, feat_cache=inner._enc_feat_map, feat_idx=inner._enc_conv_idx)
+    mu, _log_var = inner.conv1(out).chunk(2, dim=1)
+    mu = (mu - mean) * inv_std
+    lat = mu[0].to(torch.float16).cpu()
+    del x, out, mu, _log_var
+    return lat
+
+
 @torch.no_grad()
 def encode(vae, pixels: torch.Tensor, device) -> torch.Tensor:
     """(F,3,H,W) [-1,1] -> (C_lat, F_lat, H/16, W/16) f16 cpu.
@@ -72,30 +115,50 @@ def encode(vae, pixels: torch.Tensor, device) -> torch.Tensor:
     only the current micro-chunk lives on GPU. ``_enc_feat_map`` stays on GPU
     across chunks; ``clear_cache`` runs once at the start and once at the end,
     so this is not equivalent to ``for chunk in split(...): vae.encode(chunk)``.
+    The full ``pixels`` tensor still occupies host RAM — use ``encode_video``
+    for long clips.
     """
-    from videox_fun.models.wan_vae3_8 import patchify
-
-    inner = vae.model
+    inner, patchify, mean, inv_std = _encode_setup(vae, device)
     n = pixels.shape[0]
     iter_ = 1 + (n - 1) // 4
-    scale = [s.to(device, torch.bfloat16) for s in vae.scale]
-    mean = scale[0].view(1, inner.z_dim, 1, 1, 1)
-    inv_std = scale[1].view(1, inner.z_dim, 1, 1, 1)
-
     inner.clear_cache()
     latents = []
     for i in range(iter_):
         sl = slice(0, 1) if i == 0 else slice(1 + 4 * (i - 1), 1 + 4 * i)
-        x = pixels[sl].permute(1, 0, 2, 3).unsqueeze(0).to(device, torch.bfloat16)
-        x = patchify(x, patch_size=2)
-        inner._enc_conv_idx = [0]
-        out = inner.encoder(
-            x, feat_cache=inner._enc_feat_map, feat_idx=inner._enc_conv_idx)
-        mu, _log_var = inner.conv1(out).chunk(2, dim=1)
-        mu = (mu - mean) * inv_std
-        latents.append(mu[0].to(torch.float16).cpu())
-        del x, out, mu, _log_var
+        latents.append(_encode_chunk(
+            inner, pixels[sl], device, patchify, mean, inv_std))
     inner.clear_cache()
+    return torch.cat(latents, dim=1)
+
+
+@torch.no_grad()
+def encode_video(vae, path: str, n_frames: int, device, resize_w: int = 0,
+                 resize_hw: tuple[int, int] | None = None) -> torch.Tensor:
+    """Decode+encode a clip without holding the pixel video in RAM.
+
+    Same causal 1-then-4 path as ``encode``; OpenCV yields one micro-chunk at
+    a time and the pixels are dropped after that VAE step.
+    """
+    inner, patchify, mean, inv_std = _encode_setup(vae, device)
+    iter_ = 1 + (n_frames - 1) // 4
+    cap = cv2.VideoCapture(path)
+    inner.clear_cache()
+    latents = []
+    got = 0
+    try:
+        for i in range(iter_):
+            n_read = 1 if i == 0 else 4
+            frames = _read_bgr_frames(cap, n_read, path, got, resize_w, resize_hw)
+            pixels = _bgr_frames_to_pixels(frames)
+            got += n_read
+            latents.append(_encode_chunk(
+                inner, pixels, device, patchify, mean, inv_std))
+            del frames, pixels
+            if i == 0 or (i + 1) % 80 == 0 or i + 1 == iter_:
+                print(f"[vae] encoded {got}/{n_frames} frames", flush=True)
+    finally:
+        cap.release()
+        inner.clear_cache()
     return torch.cat(latents, dim=1)
 
 
