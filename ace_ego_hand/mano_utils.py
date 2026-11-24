@@ -9,6 +9,7 @@ Conventions (single source of truth — used by the projector, models/ and viz):
   N_SLOTS  = 2   — left + right hand. Slot 0 = left, slot 1 = right.
 """
 import os
+from types import SimpleNamespace
 
 import torch
 import torch.nn.functional as F
@@ -77,15 +78,20 @@ def mano_forward_batch_full(go_rotmat, hp_rotmat, betas, mano_model):
         go_rotmat: (B, 3, 3) or (B, 1, 3, 3) global orient rotmats
         hp_rotmat: (B, 15, 3, 3) hand-pose rotmats
         betas:     (B, 10)
-        mano_model: smplx MANO module on the same device as the inputs.
+        mano_model: smplx MANO module (native convention) or a
+            ``RightMirrorFullRotationMano`` (right-mirror convention), on the
+            same device as the inputs.
 
     Returns:
         ``(joints_21, vertices_778)`` torch tensors on the model device.
     """
     B = go_rotmat.shape[0]
-    go_aa = rotmat_to_axis_angle(go_rotmat.reshape(B, 3, 3))                 # (B, 3)
-    hp_aa = rotmat_to_axis_angle(hp_rotmat.reshape(B * 15, 3, 3)).reshape(B, 45)
-    out = mano_model(global_orient=go_aa, hand_pose=hp_aa, betas=betas)
+    if hasattr(mano_model, "forward_rotmats"):       # full-rotation convention
+        out = mano_model.forward_rotmats(go_rotmat, hp_rotmat, betas)
+    else:
+        go_aa = rotmat_to_axis_angle(go_rotmat.reshape(B, 3, 3))             # (B, 3)
+        hp_aa = rotmat_to_axis_angle(hp_rotmat.reshape(B * 15, 3, 3)).reshape(B, 45)
+        out = mano_model(global_orient=go_aa, hand_pose=hp_aa, betas=betas)
     tips = out.vertices[:, _MANO_TIP_IDS]                                    # (B, 5, 3)
     joints_21 = torch.cat([out.joints, tips], dim=1)[:, _MANO_TO_OP]         # (B, 21, 3)
     return joints_21, out.vertices
@@ -97,7 +103,70 @@ def mano_forward_batch_full(go_rotmat, hp_rotmat, betas, mano_model):
 
 
 
-def init_mano_and_renderer(render_mode="solid", device="cpu", flat_hand_mean=False):
+# ── MANO conventions ──────────────────────────────────────────────────
+
+# How a checkpoint's MANO parameters are decoded. It is fixed by the labels the
+# checkpoint was trained on, so it is set in the model config
+# (``geometry.mano_convention``) and written to every prediction file.
+#   native       — the paper checkpoints. Left slot = MANO_LEFT, right slot =
+#                  MANO_RIGHT; ``hand_pose`` is relative to the MANO mean pose
+#                  (smplx ``flat_hand_mean=False``).
+#   right_mirror — the EgoHandBench-retrained checkpoint. Both slots use
+#                  MANO_RIGHT with full local rotations (mean pose included);
+#                  the left hand is the right-hand output reflected in x. This
+#                  is the EgoHandBench label format.
+MANO_CONVENTIONS = ("native", "right_mirror")
+
+
+def mano_convention(opt: dict) -> str:
+    convention = (opt.get("geometry") or {}).get("mano_convention", "native")
+    if convention not in MANO_CONVENTIONS:
+        raise ValueError(f"unknown geometry.mano_convention {convention!r}; "
+                         f"expected one of {MANO_CONVENTIONS}")
+    return convention
+
+
+class RightMirrorFullRotationMano(torch.nn.Module):
+    """MANO_RIGHT driven by full rotations; the left slot reflects the output in x.
+
+    ``forward_rotmats`` returns the 16 MANO joints and 778 vertices before any
+    translation. Rotations go straight to LBS: no mean pose is added.
+    """
+
+    def __init__(self, is_right: bool):
+        super().__init__()
+        import smplx
+        self.is_right = bool(is_right)
+        self.layer = smplx.MANOLayer(os.path.join(MANO_CHECKPOINT_DIR, "mano"),
+                                     is_rhand=True, num_pca_comps=45).eval()
+        for parameter in self.layer.parameters():
+            parameter.requires_grad_(False)
+        self.register_buffer("output_sign",
+                             torch.tensor([1.0 if is_right else -1.0, 1.0, 1.0]))
+
+    @property
+    def faces(self):
+        # the reflection flips the triangle winding
+        faces = self.layer.faces.copy()
+        return faces if self.is_right else faces[:, [0, 2, 1]]
+
+    def forward_rotmats(self, go, hp, betas):
+        n = betas.shape[0]
+        with torch.autocast(device_type=self.output_sign.device.type, enabled=False):
+            out = self.layer(global_orient=go.float().reshape(n, 1, 3, 3),
+                             hand_pose=hp.float().reshape(n, 15, 3, 3),
+                             betas=betas.float())
+            return SimpleNamespace(vertices=out.vertices * self.output_sign,
+                                   joints=out.joints[:, :16] * self.output_sign)
+
+
+def _right_mirror_models(device) -> dict:
+    return {is_right: RightMirrorFullRotationMano(is_right).to(device).eval()
+            for is_right in (False, True)}
+
+
+def init_mano_and_renderer(render_mode="solid", device="cpu", flat_hand_mean=False,
+                           convention="native"):
     """Initialize MANO models.
 
     The second return value is a mesh-renderer slot kept for interface
@@ -111,12 +180,18 @@ def init_mano_and_renderer(render_mode="solid", device="cpu", flat_hand_mean=Fal
         flat_hand_mean: smplx convention. ``False`` (default) matches HaMeR /
             WiLoR / Hot3D / HoI4D / H2O / Arctic baseline pkls. ``True``
             matches manotorch / OakInk2 mocap pkls.
+        convention: ``"native"`` or ``"right_mirror"`` (see ``MANO_CONVENTIONS``);
+            use the ``mano_convention`` stored in the prediction file.
 
     Returns:
         ``(mano_models, mesh_renderer)`` where ``mano_models`` is
         ``{True: mano_right, False: mano_left}`` on ``device``; ``mesh_renderer``
         is always ``None``.
     """
+    if convention == "right_mirror":
+        return _right_mirror_models(device), None
+    if convention != "native":
+        raise ValueError(f"unknown MANO convention {convention!r}")
     import smplx
     mano_path = MANO_CHECKPOINT_DIR
     mano_r = smplx.create(mano_path, model_type='mano', is_rhand=True,
@@ -128,6 +203,10 @@ def init_mano_and_renderer(render_mode="solid", device="cpu", flat_hand_mean=Fal
 
 
 def setup_mano_models(opt: dict, device: torch.device):
+    if mano_convention(opt) == "right_mirror":
+        print(f"Loaded right-mirror full-rotation MANO on {device} for the "
+              "projector's translation decode")
+        return _right_mirror_models(device)
     import smplx  # noqa: WPS433
 
     models = {}

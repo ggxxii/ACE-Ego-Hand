@@ -43,6 +43,7 @@ sys.path.insert(0, str(ROOT))
 
 from ace_ego_hand.archs.geodit_arch import _reject_non_pinhole  # noqa: E402
 from ace_ego_hand.inference import DUMP_KEYS, predict_video  # noqa: E402
+from ace_ego_hand.mano_utils import mano_convention          # noqa: E402
 from ace_ego_hand.models.geodit_model import GeoDitModel   # noqa: E402
 from ace_ego_hand.video_vae import decode_video, encode, frame_count, load_vae  # noqa: E402
 
@@ -215,6 +216,9 @@ def main() -> None:
             "hp": gate(rec["hand_pose"]),
             "betas": gate(rec["betas"]),
             "cam_trans": gate(rec["cam_trans"]),
+            # how go / hp / betas decode to a hand: "native" or "right_mirror"
+            # (ace_ego_hand/mano_utils.py, MANO_CONVENTIONS)
+            "mano_convention": mano_convention(opt),
             # no ground truth here: slots are fixed, slot 0 = left, slot 1 = right
             "is_right": np.tile(np.array([[0.0, 1.0]], np.float32), (n, 1)),
             # the presence decision; every pose array is NaN where it is False

@@ -303,7 +303,7 @@ def main() -> int:
         print(f"no pkl matching {stem0!r} in {pred_dir}")
         return 1
     items = {stem0: {"control_file_path": _abspath(args.video), "video_id": stem0}}
-    mano_models, _ = init_mano_and_renderer(device=args.device)
+    mano_cache: dict = {}
 
     n_done = 0
     for stem in items:
@@ -337,6 +337,12 @@ def main() -> int:
         except ValueError as e:
             print(f"  SKIP {stem}: {e}")
             continue
+        # the convention the checkpoint decodes MANO with travels in the pkl
+        convention = first.get("mano_convention", "native")
+        if convention not in mano_cache:
+            mano_cache[convention], _ = init_mano_and_renderer(
+                device=args.device, convention=convention)
+        mano_models = mano_cache[convention]
         out_path = Path(_abspath(args.out)) / f"{stem}.mp4"
         n = render_video(item, pred, gt_pack, False, mano_models, out_path,
                          args.device, args.use_joints2d, args.mesh, args.max_w)
