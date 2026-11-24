@@ -1,6 +1,6 @@
 <div align="center">
 
-<h2 align="center">ACE-Ego-Hand: Repurposing Video Diffusion Models for<br>Occlusion-Robust Egocentric 3D Hand Motion Recovery</h2>
+<h1 align="center">ACE-Ego-Hand: Repurposing Video Diffusion Models for<br>Occlusion-Robust Egocentric 3D Hand Motion Recovery</h1>
 
 <h3 align="center">
 <a href="https://ggxxii.github.io/ace-ego-hand/">Webpage</a> |
@@ -28,8 +28,8 @@ Jianbo Liu<sup>4</sup>,
 [Xingang Pan](https://xingangpan.github.io/)<sup>2</sup>,
 [Hongsheng Li](https://scholar.google.com/citations?user=BN2Ze-QAAAAJ&hl=en)<sup>3,4</sup>&nbsp;&#9993;
 
-<sup>1</sup>SJTU &nbsp; <sup>2</sup>NTU &nbsp; <sup>3</sup>CUHK &nbsp; <sup>4</sup>ACE Robotics
-&nbsp;&nbsp; <sub>&#8224; Project leader &nbsp; &#9993; Corresponding author</sub>
+<sup>1</sup>SJTU &nbsp; <sup>2</sup>NTU &nbsp; <sup>3</sup>CUHK &nbsp; <sup>4</sup>ACE Robotics<br>
+&#8224; Project leader &nbsp; &#9993; Corresponding author
 
 </div>
 
